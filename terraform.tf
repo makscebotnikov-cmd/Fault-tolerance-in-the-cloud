@@ -4,104 +4,98 @@ terraform {
       source = "yandex-cloud/yandex"
     }
   }
-}
-
-variable "yandex_cloud_token" {
-  type        = string
-  description = "Данная переменная потребует ввести секретный токен в консоли при запуске terraform plan/apply"
+  required_version = ">= 0.13"
 }
 
 provider "yandex" {
-  token     = var.yandex_cloud_token 
-  cloud_id  = "b1g4hl204viqn59ct85b"
-  folder_id = "b1g010mi049m159v5u2f"
-  zone      = "ru-central1-b"
+  token = "************************************************"
+  cloud_id = "b1gm7bp2grqbho73ke1l"
+  folder_id = "b1g7l8ost873t9a9r3g3"
+  zone = "ru-central1-b"
 }
-
-#vm
 resource "yandex_compute_instance" "vm" {
-  count       = 2
-  name        = "bodrahost${count.index + 1}"
-  hostname    = "bodrahost${count.index + 1}"
-  platform_id = "standard-v3"
+  count = 2
+  name = "vm${count.index}"
+
 
   resources {
-    cores         = 2
-    memory        = 2
     core_fraction = 20
-  }
-  
-  scheduling_policy {
-    preemptible = true
+    cores  = 2
+    memory = 2
   }
 
   boot_disk {
     initialize_params {
-      image_id = "fd8s4a9mnca2bmgol2r8"
-      size     = 8
-      type     = "network-hdd"
+      image_id = "fd8a67rb91j689dqp60h"
     }
   }
 
   network_interface {
-    subnet_id = yandex_vpc_subnet.bodrasub-b.id
+    subnet_id = yandex_vpc_subnet.subnet-1.id
     nat       = true
   }
-
+  
   metadata = {
-    user-data = "${file("./meta.yml")}"
+    user-data = "${file("./meta.yaml")}"
   }
+
+}
+resource "yandex_vpc_network" "network-1" {
+  name = "network1"
 }
 
-#network
-resource "yandex_vpc_network" "bodranet" {
-  name = "bodranet"
-}
-
-#subnet
-resource "yandex_vpc_subnet" "bodrasub-b" {
-  name = "bodrasub-b"
-  v4_cidr_blocks = ["192.168.0.0/24"]
+resource "yandex_vpc_subnet" "subnet-1" {
+  name           = "subnet1"
   zone           = "ru-central1-b"
-  network_id     = "${yandex_vpc_network.bodranet.id}"
+  network_id     = yandex_vpc_network.network-1.id
+  v4_cidr_blocks = ["192.168.10.0/24"]
 }
 
-#target group
-resource "yandex_lb_target_group" "bodra-tg" {
-  name      = "bodra-tg"
+resource "yandex_lb_target_group" "target-1" {
+  name      = "target-1"
 
   target {
-    subnet_id = "${yandex_vpc_subnet.bodrasub-b.id}"
-    address   = "${yandex_compute_instance.vm[0].network_interface.0.ip_address}"
+    subnet_id = yandex_vpc_subnet.subnet-1.id
+    address   = yandex_compute_instance.vm[0].network_interface.0.ip_address
   }
 
   target {
-    subnet_id = "${yandex_vpc_subnet.bodrasub-b.id}"
-    address   = "${yandex_compute_instance.vm[1].network_interface.0.ip_address}"
+    subnet_id = yandex_vpc_subnet.subnet-1.id
+    address   = yandex_compute_instance.vm[1].network_interface.0.ip_address
   }
+
 }
 
-#network load balancer
-resource "yandex_lb_network_load_balancer" "bodra-net-lb" {
-  name = "bodra-net-lb"
-
+resource "yandex_lb_network_load_balancer" "lb-1" {
+  name = "lb1"
   listener {
-    name = "web-listener"
+    name = "listener"
     port = 80
     external_address_spec {
       ip_version = "ipv4"
     }
   }
-
   attached_target_group {
-    target_group_id = "${yandex_lb_target_group.bodra-tg.id}"
-
+    target_group_id = yandex_lb_target_group.target-1.id
     healthcheck {
       name = "http"
-      http_options {
-        port = 80
-        path = "/"
-      }
+        http_options {
+          port = 80
+          path = "/"
+        }
     }
   }
+}
+
+output "internal_ip_address_vm-0" {
+  value = yandex_compute_instance.vm[0].network_interface.0.ip_address
+}
+output "external_ip_address_vm-0" {
+  value = yandex_compute_instance.vm[0].network_interface.0.nat_ip_address
+}
+output "internal_ip_address_vm-1" {
+  value = yandex_compute_instance.vm[1].network_interface.0.ip_address
+}
+output "external_ip_address_vm-1" {
+  value = yandex_compute_instance.vm[1].network_interface.0.nat_ip_address
 }
