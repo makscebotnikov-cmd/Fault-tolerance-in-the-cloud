@@ -34,8 +34,11 @@
 
 Конфигурационный файл [terraform](/terraform.tf).
 
+
 Cкриншот статуса балансировщика и целевой группы:
+
 <img width="444" height="610" alt="1" src="https://github.com/user-attachments/assets/18326da6-c001-4ab3-a830-d624d93e2b3e" />
 
 Cкриншот страницы, которая открылась:
+
 <img width="627" height="328" alt="2" src="https://github.com/user-attachments/assets/3368b8d3-13b0-449b-a9fa-43cf23a9392d" />
